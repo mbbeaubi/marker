@@ -185,6 +185,18 @@ class OpenAILLMScorer(LLMScorer):
             temperature=0
         )
 
+        self.llm_text = AzureChatOpenAI(
+            azure_endpoint='https://idmcarch-arch-poc.openai.azure.com',
+            azure_deployment='idmc-arch-poc-gpt4o-westus3',
+            openai_api_version='2024-08-01-preview',
+            api_key=os.getenv('API_KEY'),
+            temperature=0
+        )
+
+    def test_llm(self):
+        response = self.llm_text.invoke("Hello")
+        print(response.text())
+
     def llm_response_wrapper(self, prompt, response_schema, depth=0):
         img = prompt[0]
         b64_img = encode_image_to_base64(img)
@@ -206,7 +218,9 @@ class OpenAILLMScorer(LLMScorer):
         }
 
         try:
+            print("Invoking LLM")
             response = self.llm.invoke([message])
+            print("LLM reponse received")
             
             output = response.text()
             return json.loads(output)
