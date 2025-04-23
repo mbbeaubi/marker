@@ -18,6 +18,8 @@ from marker.models import create_model_dict
 from marker.settings import settings
 from benchmarks.overall.display.table import print_scores
 
+import concurrent.futures
+
 configure_logging()
 
 
@@ -30,53 +32,52 @@ def get_method_scores(benchmark_dataset: datasets.Dataset, methods: List[str], s
     total_rows = len(benchmark_dataset)
     if max_rows:
         total_rows = min(max_rows, total_rows)
-    for idx, sample in tqdm(enumerate(benchmark_dataset), desc="Running benchmark", total=total_rows):
-        if max_rows is not None and idx >= max_rows:
-            break
 
-        doc_type = sample["classification"]
-        gt_cls = METHOD_REGISTRY["gt"]
-        gt_blocks = json.loads(sample["gt_blocks"])
-        gt_md = gt_cls(**artifacts)(sample)["markdown"]
-        markdown_by_method[idx]["gt"] = gt_md
+    batch_scores = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        for idx, sample in tqdm(enumerate(benchmark_dataset), desc="Running benchmark", total=total_rows):
+            if max_rows is not None and idx >= max_rows:
+                break
 
-        out_data = defaultdict(dict)
+            doc_type = sample["classification"]
+            gt_cls = METHOD_REGISTRY["gt"]
+            gt_blocks = json.loads(sample["gt_blocks"])
+            gt_md = gt_cls(**artifacts)(sample)["markdown"]
+            markdown_by_method[idx]["gt"] = gt_md
 
-        try:
-            for method in methods:
-                method_cls = METHOD_REGISTRY[method](**artifacts)
-                method_info = method_cls(sample)
-                method_md = method_info["markdown"]
-                if method_md is None:
-                    method_md = "" # Avoid None values
+            out_data = defaultdict(dict)
 
-                average_times[method].append(method_info["time"])
-                markdown_by_method[idx][method] = method_md
+            try:
+                for method in methods:
+                    method_cls = METHOD_REGISTRY[method](**artifacts)
+                    method_info = method_cls(sample)
+                    method_md = method_info["markdown"]
+                    if method_md is None:
+                        method_md = "" # Avoid None values
 
-                for score_type in score_types:
-                    score_cls = SCORE_REGISTRY[score_type]()
-                    try:
-                        scores = score_cls(sample, gt_md, method_md)
-                    except Exception as e:
-                        # Some scorers can fail, like the LLM one
-                        print(f"Failed to score {method} with {score_type}: {e}")
-                        continue
+                    average_times[method].append(method_info["time"])
+                    markdown_by_method[idx][method] = method_md
 
-                    out_data[method][score_type] = scores
+                    for score_type in score_types:
+                        score_cls = SCORE_REGISTRY[score_type]()
 
-                    averages_by_type[method][score_type][doc_type].append(scores["score"])
+                        batch_scores.append(executor.submit(score_and_update, score_cls, sample, gt_md, method_md, method, score_type, out_data, averages_by_type, doc_type, averages_by_block_type, gt_blocks))
 
-                    if "by_block" in scores["specific_scores"]: # Not all scorers support this
-                        for score, gt_block in zip(scores["specific_scores"]["by_block"], gt_blocks):
-                            averages_by_block_type[method][score_type][gt_block["block_type"]].append(score)
-        except Exception as e:
-            print(f"Failed to process {idx}: {e}")
-            traceback.print_exc()
-            if idx in markdown_by_method:
-                del markdown_by_method[idx]
-            continue
+                        if len(batch_scores) == 10:
+                            concurrent.futures.wait(batch_scores)
+                            batch_scores = []
 
-        bench_scores[idx] = out_data
+                if len(batch_scores) > 0:
+                    concurrent.futures.wait(batch_scores)
+                    batch_scores = []
+            except Exception as e:
+                print(f"Failed to process {idx}: {e}")
+                traceback.print_exc()
+                if idx in markdown_by_method:
+                    del markdown_by_method[idx]
+                continue
+
+            bench_scores[idx] = out_data
 
     return {
         "scores": bench_scores,
@@ -85,6 +86,25 @@ def get_method_scores(benchmark_dataset: datasets.Dataset, methods: List[str], s
         "averages_by_block_type": averages_by_block_type,
         "average_times": average_times,
     }
+
+import threading
+lock = threading.Lock()
+def score_and_update(score_cls, sample, gt_md, method_md, method, score_type, out_data, averages_by_type, doc_type, averages_by_block_type, gt_blocks):
+    try:
+        scores = score_cls(sample, gt_md, method_md)
+    except Exception as e:
+        # Some scorers can fail, like the LLM one
+        print(f"Failed to score {method} with {score_type}: {e}")
+        return
+
+    with lock:
+        out_data[method][score_type] = scores
+
+        averages_by_type[method][score_type][doc_type].append(scores["score"])
+
+        if "by_block" in scores["specific_scores"]: # Not all scorers support this
+            for score, gt_block in zip(scores["specific_scores"]["by_block"], gt_blocks):
+                averages_by_block_type[method][score_type][gt_block["block_type"]].append(score)
 
 @click.command(help="Benchmark PDF to MD conversion.")
 @click.option("--dataset", type=str, help="Path to the benchmark dataset", default="datalab-to/marker_benchmark")

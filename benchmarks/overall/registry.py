@@ -5,12 +5,15 @@ from benchmarks.overall.methods.marker import MarkerMethod
 from benchmarks.overall.methods.mathpix import MathpixMethod
 from benchmarks.overall.methods.mistral import MistralMethod
 from benchmarks.overall.methods.olmocr import OlmOCRMethod
+from benchmarks.overall.methods.pymu import PyMuMethod
+from benchmarks.overall.methods.tika import TikaMethod
+from benchmarks.overall.methods.unstructured import UnstructuredMethod
 from benchmarks.overall.scorers.heuristic import HeuristicScorer
-from benchmarks.overall.scorers.llm import LLMScorer
+from benchmarks.overall.scorers.llm import OpenAILLMScorer
 
 SCORE_REGISTRY = {
     "heuristic": HeuristicScorer,
-    "llm": LLMScorer
+    "llm": OpenAILLMScorer
 }
 
 METHOD_REGISTRY = {
@@ -20,5 +23,8 @@ METHOD_REGISTRY = {
     "llamaparse": LlamaParseMethod,
     "docling": DoclingMethod,
     "olmocr": OlmOCRMethod,
-    "mistral": MistralMethod
+    "mistral": MistralMethod,
+    "pymu": PyMuMethod,
+    "tika": TikaMethod,
+    "unstructured": UnstructuredMethod
 }

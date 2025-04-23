@@ -12,6 +12,18 @@ import pypdfium2 as pdfium
 from benchmarks.overall.scorers import BaseScorer, BlockScores
 from marker.settings import settings
 
+import base64
+from io import BytesIO
+from langchain_openai import AzureChatOpenAI
+
+# Optional: If you are using a local image
+def encode_image_to_base64(image: Image.Image, format="JPEG"):
+    buffered = BytesIO()
+    image.save(buffered, format=format)
+    img_bytes = buffered.getvalue()
+    return base64.b64encode(img_bytes).decode("utf-8")
+
+
 rating_prompt = """
 You're a document analysis expert who is comparing some markdown to an image to make sure the markdown is correct. You're rating how effectively the provided markdown represents the full text and formatting in the image provided.
 You're given an image, along with the extracted markdown:
@@ -158,3 +170,50 @@ class LLMScorer(BaseScorer):
             if depth > 2:
                 raise e
             return self.llm_response_wrapper(prompt, response_schema, depth + 1)
+        
+class OpenAILLMScorer(LLMScorer):
+
+    def __init__(self):
+        super().__init__()
+        
+        self.llm = AzureChatOpenAI(
+            azure_endpoint='https://idmcarch-arch-poc.openai.azure.com',
+            azure_deployment='idmc-arch-poc-gpt4o-westus3',
+            openai_api_version='2024-08-01-preview',
+            api_key=os.getenv('API_KEY'),
+            model_kwargs={"response_format": {"type": "json_object"}},
+            temperature=0
+        )
+
+    def llm_response_wrapper(self, prompt, response_schema, depth=0):
+        img = prompt[0]
+        b64_img = encode_image_to_base64(img)
+        text = prompt[1]
+        message = {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": text,
+                },
+                {
+                    "type": "image",
+                    "source_type": "base64",
+                    "data": b64_img,
+                    "mime_type": "image/jpeg",
+                },
+            ],
+        }
+
+        try:
+            response = self.llm.invoke([message])
+            
+            output = response.text()
+            return json.loads(output)
+        except Exception as e:
+            print(f"Hit openai rate limit, waiting 1 minute")
+            time.sleep(60)
+            if depth > 2:
+                raise e
+            return self.llm_response_wrapper(prompt, response_schema, depth + 1)
+        
