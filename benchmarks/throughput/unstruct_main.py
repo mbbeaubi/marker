@@ -4,9 +4,9 @@ import torch
 import click
 import pypdfium2 as pdfium
 from tqdm import tqdm
-import tracemalloc
 
-from docling.document_converter import DocumentConverter
+from unstructured.partition.pdf import partition_pdf
+import tracemalloc
         
 @click.command(help="Benchmark PDF to MD conversion throughput.")
 @click.argument("pdf_path", type=str)
@@ -17,9 +17,7 @@ def main(pdf_path, trace_memory: bool, loops: int):
     pdf = pdfium.PdfDocument(pdf_path)
     page_count = len(pdf)
     pdf.close()
-    converter = DocumentConverter()
     torch.cuda.reset_peak_memory_stats()
-
     if trace_memory:
         print("Tracing memory")
         tracemalloc.start()
@@ -28,7 +26,7 @@ def main(pdf_path, trace_memory: bool, loops: int):
     times = []
     for i in tqdm(range(loops), desc="Benchmarking"):
         start = time.time()
-        converter.convert(pdf_path)
+        partition_pdf(filename=pdf_path, strategy='hi_res', hi_res_model_name='yolox', infer_table_structure=True)
         total = time.time() - start
         times.append(total)
 

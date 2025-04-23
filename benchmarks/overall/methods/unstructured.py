@@ -5,7 +5,6 @@ from benchmarks.overall.methods import BaseMethod, BenchmarkResult
 
 from unstructured.documents.elements import Element
 from unstructured.partition.pdf import partition_pdf
-from unstructured.staging.base import elements_to_text
 
 class UnstructuredMethod(BaseMethod):
     model_dict: dict = None

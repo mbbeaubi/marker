@@ -15,7 +15,8 @@ from markdownify import markdownify as md
 @click.option("--trace_memory", type=bool, help="Trace memory usage", default=False)
 @click.option("--skip_ocr", type=bool, help="Skip tesseract OCR", default=True)
 @click.option("--timeout", type=int, help="Request timeout", default=600)
-def main(pdf_path: str, trace_memory: bool, skip_ocr: bool, timeout: int):
+@click.option("--loops", type=int, help="Number of benchmark loops", default=10)
+def main(pdf_path: str, trace_memory: bool, skip_ocr: bool, timeout: int, loops: int):
     print(f"Converting {pdf_path} to markdown...")
     pdf = pdfium.PdfDocument(pdf_path)
     page_count = len(pdf)
@@ -23,8 +24,11 @@ def main(pdf_path: str, trace_memory: bool, skip_ocr: bool, timeout: int):
     tika.initVM()
     times = []
     if trace_memory:
+        print("Tracing memory")
         tracemalloc.start()
-    for i in tqdm(range(1), desc="Benchmarking"):
+        loops = 1
+
+    for i in tqdm(range(loops), desc="Benchmarking"):
         start = time.time()
         parsed = parser.from_file(pdf_path, requestOptions={"timeout": timeout}, headers={'X-Tika-OCRskipOcr': str(skip_ocr).lower()})
         md(parsed['content'])

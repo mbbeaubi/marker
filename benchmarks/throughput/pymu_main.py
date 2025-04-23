@@ -12,15 +12,19 @@ import tracemalloc
 @click.command(help="Benchmark PDF to MD conversion throughput.")
 @click.argument("pdf_path", type=str)
 @click.option("--trace_memory", type=bool, help="Trace memory usage", default=False)
-def main(pdf_path: str, trace_memory: bool):
+@click.option("--loops", type=int, help="Number of benchmark loops", default=10)
+def main(pdf_path: str, trace_memory: bool, loops: int):
     print(f"Converting {pdf_path} to markdown...")
     pdf = pdfium.PdfDocument(pdf_path)
     page_count = len(pdf)
     pdf.close()
     times = []
     if trace_memory:
+        print("Tracing memory")
         tracemalloc.start()
-    for i in tqdm(range(10), desc="Benchmarking"):
+        loops = 1
+
+    for i in tqdm(range(loops), desc="Benchmarking"):
         start = time.time()
         doc = pymupdf.open(pdf_path)
         to_markdown(doc)
