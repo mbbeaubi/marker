@@ -30,7 +30,7 @@ def main(pdf_path: str, trace_memory: bool, skip_ocr: bool, timeout: int, loops:
 
     for i in tqdm(range(loops), desc="Benchmarking"):
         start = time.time()
-        parsed = parser.from_file(pdf_path, requestOptions={"timeout": timeout}, headers={'X-Tika-OCRskipOcr': str(skip_ocr).lower()})
+        parsed = parser.from_file(pdf_path, requestOptions={"timeout": timeout}, headers={'X-Tika-OCRskipOcr': str(skip_ocr).lower(), 'X-Tika-Timeout-Millis': str(timeout * 1000)})
         md(parsed['content'])
         total = time.time() - start
         times.append(total)
