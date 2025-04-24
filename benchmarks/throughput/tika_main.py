@@ -17,7 +17,7 @@ from markdownify import markdownify as md
 @click.option("--timeout", type=int, help="Request timeout", default=600)
 @click.option("--loops", type=int, help="Number of benchmark loops", default=10)
 def main(pdf_path: str, trace_memory: bool, skip_ocr: bool, timeout: int, loops: int):
-    print(f"Converting {pdf_path} to markdown...")
+    print(f"Converting {pdf_path} to markdown with timeout {timeout} and skip_ocr {skip_ocr}...")
     pdf = pdfium.PdfDocument(pdf_path)
     page_count = len(pdf)
     pdf.close()
