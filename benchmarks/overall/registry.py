@@ -8,6 +8,8 @@ from benchmarks.overall.methods.olmocr import OlmOCRMethod
 from benchmarks.overall.methods.pymu import PyMuMethod
 from benchmarks.overall.methods.tika import TikaMethod
 from benchmarks.overall.methods.unstructured import UnstructuredMethod
+from benchmarks.overall.methods.markitdown import MarkitdownMethod
+from benchmarks.overall.methods.uminer import UminerMethod
 from benchmarks.overall.scorers.heuristic import HeuristicScorer
 from benchmarks.overall.scorers.llm import OpenAILLMScorer
 
@@ -26,5 +28,7 @@ METHOD_REGISTRY = {
     "mistral": MistralMethod,
     "pymu": PyMuMethod,
     "tika": TikaMethod,
-    "unstructured": UnstructuredMethod
+    "unstructured": UnstructuredMethod,
+    "markitdown": MarkitdownMethod,
+    "uminer": UminerMethod
 }
